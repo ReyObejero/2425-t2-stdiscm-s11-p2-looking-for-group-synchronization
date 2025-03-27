@@ -1,6 +1,6 @@
 namespace LfgDungeonQueue {
 
-    public class ConsoleIOHandler {
+    public class IOHandler {
         public static T PromptInput<T>(string message) {
             while (true) {
                 Console.Write($"{message}: ");
