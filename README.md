@@ -4,6 +4,8 @@
 
 This is a console application that implements the management of Looking For Group (LFG) dungeon queueing in MMORPGs.
 
+The source code is available on GitHub: [GitHub Repository](https://github.com/ReyObejero/2425-t2-stdiscm-s11-p2-looking-for-group-synchronization)
+
 ## Prerequisites
 
 The following are needed to build and compile the application:
