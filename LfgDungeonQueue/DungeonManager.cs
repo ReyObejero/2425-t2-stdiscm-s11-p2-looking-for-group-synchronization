@@ -21,6 +21,25 @@ namespace LfgDungeonQueue {
         public DungeonManager(
             int maxDungeons, int numTankPlayers, int numHealerPlayers,
             int numDpsPlayers, int minDungeonDuration, int maxDungeonDuration) {
+            List<string> validationErrors = new List<string>();
+
+            if (maxDungeons < 1)
+                validationErrors.Add($"Maximum number of dungeons: {maxDungeons}, must be >= 1.");
+            if (numTankPlayers < 1)
+                validationErrors.Add($"Number of tank players: {numTankPlayers}, must be >= 1.");
+            if (numHealerPlayers < 1)
+                validationErrors.Add($"Number of healer players: {numHealerPlayers}, must be >= 1");
+            if (numDpsPlayers < 1)
+                validationErrors.Add($"Number of DPS players: {numDpsPlayers}, must be >= 1.");
+            if (minDungeonDuration < 1 || minDungeonDuration > maxDungeonDuration)
+                validationErrors.Add($"Minimum dungeon duration: {minDungeonDuration}, must be >= 1 and <= maximum dungeon duration.");
+            if (maxDungeonDuration < 1 || maxDungeonDuration > 15)
+                validationErrors.Add($"Maximum dungeon duration: {maxDungeonDuration}, must be >= 1 and <= 15.");
+
+            if (validationErrors.Count > 0) {
+                throw new ArgumentException(string.Join("\n", validationErrors));
+            }
+
             _maxDungeons = maxDungeons;
             _numTankPlayers = numTankPlayers;
             _numHealerPlayers = numHealerPlayers;
@@ -35,6 +54,13 @@ namespace LfgDungeonQueue {
         }
 
         public void StartQueue() {
+            IOHandler.Log("Dungeon manager started with the following parameters:");
+            IOHandler.Log($" > Maximum number of dungeons: {_maxDungeons}");
+            IOHandler.Log($" > Number of tank players: {_numTankPlayers}");
+            IOHandler.Log($" > Number of healer players: {_numHealerPlayers}");
+            IOHandler.Log($" > Number of DPS players: {_numDpsPlayers}");
+            IOHandler.Log($" > Minimum dungeon duration: {_minDungeonDuration}");
+            IOHandler.Log($" > Maximum dungeon duration: {_maxDungeonDuration}");
             IOHandler.Log("Queueing...");
 
             Thread queueingWorker = new Thread(ProcessQueueing);
