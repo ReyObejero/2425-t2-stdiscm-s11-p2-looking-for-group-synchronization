@@ -5,18 +5,17 @@ namespace LfgDungeonQueue {
         private const int _partyCompNumHealerPlayers = 1;
         private const int _partyCompNumDpsPlayers = 3;
         private readonly int _maxDungeons;
-        private int _numTankPlayers;
-        private int _numHealerPlayers;
-        private int _numDpsPlayers;
         private readonly int _minDungeonDuration;
         private readonly int _maxDungeonDuration;
         private List<Dungeon> _dungeons;
-        private List<Thread> _dungeonSimulationWorkers = new();        
+        private List<Thread> _dungeonSimulationWorkers = new();
         private HashSet<int> _activeDungeons = new();
+        
+        private Queue<Player> _playerQueue = new Queue<Player>();
         private int _totalPartiesServed = 0;
         private int _totalTimeServed = 0;
-        private Mutex _mutex = new();
         private bool _isQueueingActive = true;
+        private Mutex _mutex = new();
 
         public DungeonManager(
             int maxDungeons, int numTankPlayers, int numHealerPlayers,
@@ -41,9 +40,6 @@ namespace LfgDungeonQueue {
             }
 
             _maxDungeons = maxDungeons;
-            _numTankPlayers = numTankPlayers;
-            _numHealerPlayers = numHealerPlayers;
-            _numDpsPlayers = numDpsPlayers;
             _minDungeonDuration = minDungeonDuration;
             _maxDungeonDuration = maxDungeonDuration;
             _dungeons = new List<Dungeon>();
@@ -51,14 +47,24 @@ namespace LfgDungeonQueue {
             for (int i = 0; i < _maxDungeons; i++) {
                 _dungeons.Add(new Dungeon(i));
             }
+
+            for (int i = 0; i < numTankPlayers; i++) {
+                _playerQueue.Enqueue(new Player(PlayerRole.Tank));
+            }
+
+            for (int i = 0; i < numHealerPlayers; i++) {
+                _playerQueue.Enqueue(new Player(PlayerRole.Healer));
+            }
+            
+            for (int i = 0; i < numDpsPlayers; i++) {
+                _playerQueue.Enqueue(new Player(PlayerRole.Dps));
+            }
         }
 
         public void StartQueue() {
             IOHandler.Log("Dungeon manager started with the following parameters:");
             IOHandler.Log($" > Maximum number of dungeons: {_maxDungeons}");
-            IOHandler.Log($" > Number of tank players: {_numTankPlayers}");
-            IOHandler.Log($" > Number of healer players: {_numHealerPlayers}");
-            IOHandler.Log($" > Number of DPS players: {_numDpsPlayers}");
+            IOHandler.Log($" > Total players: {_playerQueue.Count}");
             IOHandler.Log($" > Minimum dungeon duration: {_minDungeonDuration}");
             IOHandler.Log($" > Maximum dungeon duration: {_maxDungeonDuration}");
             IOHandler.Log("Queueing...");
@@ -90,9 +96,7 @@ namespace LfgDungeonQueue {
         }
 
         private bool HasEnoughPlayers() {
-            return _numTankPlayers >= _partyCompNumTankPlayers &&
-                   _numHealerPlayers >= _partyCompNumHealerPlayers &&
-                   _numDpsPlayers >= _partyCompNumDpsPlayers;
+            return _playerQueue.Count >= (_partyCompNumTankPlayers + _partyCompNumHealerPlayers + _partyCompNumDpsPlayers);
         }
 
         private void StartDungeonRun() {
@@ -111,9 +115,17 @@ namespace LfgDungeonQueue {
                 if (dungeon != null) {
                     _activeDungeons.Add(dungeon.GetId());
                     dungeonDuration = new Random().Next(_minDungeonDuration, _maxDungeonDuration + 1);
-                    _numTankPlayers -= _partyCompNumTankPlayers;
-                    _numHealerPlayers -= _partyCompNumHealerPlayers;
-                    _numDpsPlayers -= _partyCompNumDpsPlayers;
+
+                    List<Player> selectedPlayers = new List<Player>();
+                    for (int i = 0; i < _partyCompNumTankPlayers; i++) {
+                        selectedPlayers.Add(_playerQueue.Dequeue());
+                    }
+                    for (int i = 0; i < _partyCompNumHealerPlayers; i++) {
+                        selectedPlayers.Add(_playerQueue.Dequeue());
+                    }
+                    for (int i = 0; i < _partyCompNumDpsPlayers; i++) {
+                        selectedPlayers.Add(_playerQueue.Dequeue());
+                    }
 
                     DisplayStatus();
                 } else {
@@ -139,30 +151,34 @@ namespace LfgDungeonQueue {
         }
 
         private void DisplayStatus() {
-            IOHandler.Log("================================= STATUS ===============================================");
-            IOHandler.Log("| Active Dungeons       | Empty Dungeons        | Tanks | Healers | DPS |");
-            IOHandler.Log("----------------------------------------------------------------------------------------");
-            IOHandler.Log($"| {string.Join(", ", _activeDungeons).PadRight(21)} | " +
-                          $"{string.Join(", ", _dungeons.Select(d => d.GetId()).Except(_activeDungeons)).PadRight(21)} | " +
-                          $"{_numTankPlayers,5} | {_numHealerPlayers,7} | {_numDpsPlayers,3} |");
-            IOHandler.Log("****************************************************************************************");
+            IOHandler.Log("================================= STATUS =========================================");
+            IOHandler.Log("|   Active Dungeons    |   Empty Dungeons    |  Tanks  |  Healers  |  DPS  |");
+            IOHandler.Log("----------------------------------------------------------------------------------");
+            IOHandler.Log($"| {string.Join(", ", _activeDungeons).PadRight(20)} | " +
+                        $"{string.Join(", ", _dungeons.Select(d => d.GetId()).Except(_activeDungeons)).PadRight(19)} | " +
+                        $"{_playerQueue.Count(p => p.Role == PlayerRole.Tank),7} | " +
+                        $"{_playerQueue.Count(p => p.Role == PlayerRole.Healer),9} | " +
+                        $"{_playerQueue.Count(p => p.Role == PlayerRole.Dps),5} |");
+            IOHandler.Log("**********************************************************************************");
         }
 
         private void DisplayQueueingStatistics() {
-            IOHandler.Log("================================ RESULTS ===============================================");
-            IOHandler.Log("| Parties Served | Total Time (s) | Unqueued Tanks | Unqueued Healers | Unqueued DPS |");
-            IOHandler.Log("----------------------------------------------------------------------------------------");
-            IOHandler.Log($"| {_totalPartiesServed,14} | {_totalTimeServed,14} | {_numTankPlayers,14} | " +
-                        $"{_numHealerPlayers,16} | {_numDpsPlayers,12} |");
-            IOHandler.Log("****************************************************************************************");
+            IOHandler.Log("============================== RESULTS ===========================================");
+            IOHandler.Log("|  Parties Served  | Total Time (s) | Unused Tanks | Unused Healers | Unused DPS |");
+            IOHandler.Log("----------------------------------------------------------------------------------");
+            IOHandler.Log($"| {_totalPartiesServed,16} | {_totalTimeServed,14} | " +
+                        $"{_playerQueue.Count(p => p.Role == PlayerRole.Tank),12} | " +
+                        $"{_playerQueue.Count(p => p.Role == PlayerRole.Healer),14} | " +
+                        $"{_playerQueue.Count(p => p.Role == PlayerRole.Dps),10} |");
+            IOHandler.Log("**********************************************************************************");
 
-            IOHandler.Log("================================ PARTIES SERVED ========================================");
-            IOHandler.Log("| Dungeon ID | Frequency | Time Served (s) |");
-            IOHandler.Log("----------------------------------------------------------------------------------------");
+            IOHandler.Log("============================== PARTIES SERVED ====================================");
+            IOHandler.Log("|  Dungeon ID  |  Frequency  | Time Served (s) |");
+            IOHandler.Log("----------------------------------------------------------------------------------");
             foreach (var dungeon in _dungeons) {
-                IOHandler.Log($"| {dungeon.GetId(),10} | {dungeon.GetPartiesServed(),9} | {dungeon.GetTimeServed(),14} |");
+                IOHandler.Log($"| {dungeon.GetId(),12} | {dungeon.GetPartiesServed(),11} | {dungeon.GetTimeServed(),15} |");
             }
-            IOHandler.Log("****************************************************************************************");
+            IOHandler.Log("**********************************************************************************");
         }
     }
 }
