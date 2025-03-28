@@ -153,14 +153,14 @@ namespace LfgDungeonQueue {
             IOHandler.Log("| Parties Served | Total Time (s) | Unqueued Tanks | Unqueued Healers | Unqueued DPS |");
             IOHandler.Log("----------------------------------------------------------------------------------------");
             IOHandler.Log($"| {_totalPartiesServed,14} | {_totalTimeServed,14} | {_numTankPlayers,14} | " +
-                          $"{_numHealerPlayers,16} | {_numDpsPlayers,12} |");
+                        $"{_numHealerPlayers,16} | {_numDpsPlayers,12} |");
             IOHandler.Log("****************************************************************************************");
 
             IOHandler.Log("================================ PARTIES SERVED ========================================");
-            IOHandler.Log("| Dungeon ID | Frequency |");
+            IOHandler.Log("| Dungeon ID | Frequency | Time Served (s) |");
             IOHandler.Log("----------------------------------------------------------------------------------------");
             foreach (var dungeon in _dungeons) {
-                IOHandler.Log($"| {dungeon.GetId(),10} | {dungeon.GetPartiesServed(),9} |");
+                IOHandler.Log($"| {dungeon.GetId(),10} | {dungeon.GetPartiesServed(),9} | {dungeon.GetTimeServed(),14} |");
             }
             IOHandler.Log("****************************************************************************************");
         }
